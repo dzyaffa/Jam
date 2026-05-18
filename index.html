@@ -5,124 +5,696 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clock MS</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@300;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@300;600&family=Orbitron:wght@400;700&family=DM+Mono:wght@300;500&family=Bebas+Neue&display=swap');
+
+  :root {
+    --accent: #00ff88;
+    --bg: #080808;
+    --panel: #101010;
+    --border: #1a1a1a;
+    --muted: #333;
+    --text: #bbb;
+  }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: #080808;
-    min-height: 100vh;
+    background: var(--bg);
+    width: 100vw; height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: background 0.4s;
+    gap: 0;
+  }
+
+  /* ═══ COMPASS ═══ */
+  .compass-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .compass-ring {
+    width: clamp(60px, 15vw, 84px);
+    height: clamp(60px, 15vw, 84px);
+    border-radius: 50%;
+    border: 1px solid rgba(0,255,136,0.12);
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Share Tech Mono', monospace;
-    overflow: hidden;
   }
-
-  /* scanlines */
-  body::before {
+  .compass-ring::before {
     content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg, transparent, transparent 2px,
-      rgba(0,255,136,0.012) 2px, rgba(0,255,136,0.012) 4px
-    );
-    pointer-events: none;
-    z-index: 10;
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px dashed rgba(0,255,136,0.07);
   }
 
-  .wrap {
+  .compass-needle {
+    position: absolute;
+    width: 2px; height: 80%;
+    top: 10%; left: calc(50% - 1px);
+    transform-origin: 50% 100%;
+    transition: transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+  .needle-n {
+    position: absolute; bottom: 50%; left: 0; right: 0; height: 50%;
+    background: linear-gradient(to bottom, var(--accent), rgba(0,255,136,0.25));
+    border-radius: 2px 2px 0 0;
+    box-shadow: 0 0 6px var(--accent);
+  }
+  .needle-s {
+    position: absolute; top: 50%; left: 0; right: 0; height: 50%;
+    background: linear-gradient(to bottom, rgba(255,60,60,0.45), rgba(255,60,60,0.08));
+    border-radius: 0 0 2px 2px;
+  }
+  .compass-center {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent);
+    position: relative; z-index: 2;
+  }
+  .card {
+    position: absolute;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(7px, 1.8vw, 9px);
+    color: rgba(0,255,136,0.3); line-height: 1;
+  }
+  .card-n { top: 3px; left: 50%; transform: translateX(-50%); color: rgba(0,255,136,0.6); }
+  .card-s { bottom: 3px; left: 50%; transform: translateX(-50%); }
+  .card-e { right: 4px; top: 50%; transform: translateY(-50%); }
+  .card-w { left: 4px; top: 50%; transform: translateY(-50%); }
+
+  .compass-deg {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(8px, 2.2vw, 10px);
+    color: rgba(0,255,136,0.28);
+    margin-top: 3px; letter-spacing: 2px;
+  }
+  #compassNote {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px; letter-spacing: 1px;
+    color: rgba(0,255,136,0.18);
+    margin-top: 1px; text-align: center;
+  }
+
+  /* ═══ DOT BAR (top, comet) — BIGGER ═══ */
+  .dot-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(4px, 1.2vw, 7px);
+    padding: 6px 0 4px;
+  }
+  .dot {
+    width: clamp(5px, 1.4vw, 8px);
+    height: clamp(5px, 1.4vw, 8px);
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.07;
+    transition: opacity 0.07s, box-shadow 0.07s;
+    flex-shrink: 0;
+  }
+  .dot.lit {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--accent), 0 0 16px rgba(0,255,136,0.45);
+  }
+  .dot.trail1 { opacity: 0.45; }
+  .dot.trail2 { opacity: 0.22; }
+  .dot.trail3 { opacity: 0.12; }
+
+  /* ═══ CLOCK ═══ */
+  .clock-wrap {
     text-align: center;
     user-select: none;
+    width: 100%; padding: 0 10px;
   }
 
-  .date-line {
-    font-family: 'Teko', sans-serif;
-    font-weight: 300;
-    font-size: 16px;
-    letter-spacing: 6px;
-    color: #2a6644;
-    text-transform: uppercase;
-    margin-bottom: 10px;
+  #dateLine {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(9px, 2.8vw, 13px);
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--accent); opacity: 0.4; margin-bottom: 2px;
   }
 
   .time-row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 0;
-    line-height: 1;
+    display: flex; align-items: flex-end;
+    justify-content: center; line-height: 1; white-space: nowrap;
   }
 
-  .hms {
-    font-family: 'Teko', sans-serif;
-    font-weight: 600;
-    font-size: clamp(80px, 20vw, 140px);
-    color: #00ff88;
-    text-shadow: 0 0 40px rgba(0,255,136,0.25);
-    letter-spacing: -3px;
+  #hms {
+    font-family: 'Teko', sans-serif; font-weight: 600;
     font-variant-numeric: tabular-nums;
+    font-size: clamp(36px, 18vw, 145px);
+    color: var(--accent);
+    text-shadow: 0 0 28px rgba(0,255,136,0.18);
+    letter-spacing: -1px; line-height: 0.95;
   }
-
-  .ms {
+  #ampm {
     font-family: 'Share Tech Mono', monospace;
-    font-size: clamp(28px, 7vw, 50px);
-    color: rgba(0,255,136,0.35);
-    padding-bottom: clamp(10px, 2.5vw, 18px);
-    padding-left: 6px;
+    font-size: clamp(11px, 4vw, 32px);
+    color: var(--accent); opacity: 0.5;
+    padding-bottom: 0.15em; padding-left: 5px;
+  }
+  #ms {
+    font-family: 'Share Tech Mono', monospace;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 1px;
+    font-size: clamp(12px, 5vw, 38px);
+    color: var(--accent); opacity: 0.32;
+    padding-bottom: 0.15em; padding-left: 2px;
+  }
+  #tzLine {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(7px, 2vw, 10px);
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); opacity: 0.18; margin-top: 4px;
   }
 
-  .tz {
-    font-size: 11px;
-    letter-spacing: 4px;
-    color: #1f3d2e;
-    margin-top: 12px;
-    text-transform: uppercase;
+  /* ═══ 60-DOT SECOND RING ═══ */
+  .sec-dots {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: clamp(3px, 0.9vw, 5px);
+    padding: 8px 16px 4px;
+    width: 100%;
+    max-width: 360px;
   }
+
+  .sdot {
+    width: clamp(5px, 1.3vw, 7px);
+    height: clamp(5px, 1.3vw, 7px);
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.08;
+    transition: opacity 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .sdot.on {
+    opacity: 0.9;
+    box-shadow: 0 0 5px var(--accent), 0 0 10px rgba(0,255,136,0.3);
+  }
+  /* current second pulses */
+  .sdot.cur {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--accent), 0 0 18px rgba(0,255,136,0.55);
+    animation: sdotpulse 1s infinite;
+  }
+  @keyframes sdotpulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.35); }
+  }
+
+  /* ═══ SETTINGS BTN ═══ */
+  #settingsBtn {
+    position: fixed; bottom: 16px; right: 16px; z-index: 50;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #settingsBtn:active { color: var(--accent); border-color: var(--accent); }
+
+  /* ═══ SETTINGS PANEL ═══ */
+  #settingsPanel {
+    position: fixed; bottom: 68px; right: 10px; left: 10px;
+    z-index: 49; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 12px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.85);
+    max-height: 68vh;
+  }
+  #settingsPanel.open { display: flex; }
+
+  .s-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; letter-spacing: 4px; color: var(--muted);
+    text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .s-close {
+    cursor: pointer; color: var(--muted); font-size: 16px;
+    background: none; border: none; padding: 4px 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .s-close:active { color: var(--accent); }
+
+  .s-body {
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 4px 0 12px;
+  }
+
+  .s-section {
+    padding: 9px 16px 2px; font-size: 9px; letter-spacing: 3px;
+    color: #252525; text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .s-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px; gap: 10px;
+  }
+  .s-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: var(--text); flex-shrink: 0;
+  }
+  .toggle {
+    width: 40px; height: 22px; border-radius: 11px;
+    background: var(--border); position: relative;
+    cursor: pointer; flex-shrink: 0; border: none;
+    transition: background 0.2s; outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #3a3a3a; transition: all 0.2s;
+  }
+  .toggle.on { background: rgba(0,255,136,0.15); }
+  .toggle.on::after { left: 21px; background: var(--accent); }
+
+  .s-select {
+    background: #141414; border: 1px solid var(--border);
+    color: var(--text); font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; padding: 6px 8px; border-radius: 4px;
+    cursor: pointer; outline: none; max-width: 165px; width: 100%;
+  }
+  .s-select:focus { border-color: var(--accent); }
+
+  .swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 24px; height: 24px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.15s; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .swatch:active { transform: scale(1.2); }
+  .swatch.active { border-color: white; }
+
+  .s-divider { height: 1px; background: var(--border); margin: 4px 0; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="date-line" id="dateLine"></div>
-  <div class="time-row">
-    <div class="hms" id="hms">00:00:00</div>
-    <div class="ms" id="ms">.000</div>
+
+<!-- COMPASS -->
+<div class="compass-wrap" id="compassWrap">
+  <div class="compass-ring" onclick="startCompass()">
+    <span class="card card-n">N</span>
+    <span class="card card-s">S</span>
+    <span class="card card-e">E</span>
+    <span class="card card-w">W</span>
+    <div class="compass-needle" id="needle">
+      <div class="needle-n"></div>
+      <div class="needle-s"></div>
+    </div>
+    <div class="compass-center"></div>
   </div>
-  <div class="tz" id="tz"></div>
+  <div class="compass-deg" id="compassDeg">--- °</div>
+  <div id="compassNote">tap untuk izin kompas</div>
+</div>
+
+<!-- DOT BAR (comet, top) -->
+<div class="dot-bar" id="dotBar"></div>
+
+<!-- CLOCK -->
+<div class="clock-wrap">
+  <div id="dateLine"></div>
+  <div class="time-row">
+    <div id="hms">00:00:00</div>
+    <div id="ampm"></div>
+    <div id="ms">.000</div>
+  </div>
+  <div id="tzLine"></div>
+</div>
+
+<!-- 60-DOT SECOND INDICATOR -->
+<div class="sec-dots" id="secDots"></div>
+
+<button id="settingsBtn" onclick="togglePanel()">⚙</button>
+
+<div id="settingsPanel">
+  <div class="s-header">
+    Settings
+    <button class="s-close" onclick="togglePanel()">✕</button>
+  </div>
+  <div class="s-body">
+
+    <div class="s-section">Format Waktu</div>
+    <div class="s-row">
+      <span class="s-label">12 Jam (AM/PM)</span>
+      <button class="toggle" id="tog12h" onclick="toggleSetting('hour12')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Tampilkan Detik</span>
+      <button class="toggle on" id="togSec" onclick="toggleSetting('showSec')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Tampilkan Milidetik</span>
+      <button class="toggle on" id="togMs" onclick="toggleSetting('showMs')"></button>
+    </div>
+
+    <div class="s-divider"></div>
+    <div class="s-section">Tanggal</div>
+    <div class="s-row">
+      <span class="s-label">Tampilkan Tanggal</span>
+      <button class="toggle on" id="togDate" onclick="toggleSetting('showDate')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Format</span>
+      <select class="s-select" id="selDateFmt" onchange="setSetting('dateFmt',this.value)">
+        <option value="long">Senin, 18 Mei 2026</option>
+        <option value="short">18 Mei 2026</option>
+        <option value="numeric">18/05/2026</option>
+        <option value="us">05/18/2026</option>
+        <option value="iso">2026-05-18</option>
+      </select>
+    </div>
+
+    <div class="s-divider"></div>
+    <div class="s-section">Info</div>
+    <div class="s-row">
+      <span class="s-label">Tampilkan Timezone</span>
+      <button class="toggle on" id="togTz" onclick="toggleSetting('showTz')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">60 Dot Detik</span>
+      <button class="toggle on" id="togSecDots" onclick="toggleSetting('showSecDots')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Tampilkan Kompas</span>
+      <button class="toggle on" id="togCompass" onclick="toggleSetting('showCompass')"></button>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Dot Bar Atas</span>
+      <button class="toggle on" id="togDots" onclick="toggleSetting('showDots')"></button>
+    </div>
+
+    <div class="s-divider"></div>
+    <div class="s-section">Timezone</div>
+    <div class="s-row">
+      <span class="s-label">Otomatis (device)</span>
+      <button class="toggle on" id="togAutoTz" onclick="toggleSetting('autoTz')"></button>
+    </div>
+    <div class="s-row" id="rowManualTz" style="display:none">
+      <span class="s-label">Zona</span>
+      <select class="s-select" id="selTz" onchange="setSetting('tz',this.value)"></select>
+    </div>
+
+    <div class="s-divider"></div>
+    <div class="s-section">Tampilan</div>
+    <div class="s-row">
+      <span class="s-label">Warna</span>
+      <div class="swatch-row" id="swatchRow"></div>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Font</span>
+      <select class="s-select" onchange="setSetting('font',this.value)">
+        <option value="teko">Teko (default)</option>
+        <option value="orbitron">Orbitron</option>
+        <option value="bebas">Bebas Neue</option>
+        <option value="mono">DM Mono</option>
+      </select>
+    </div>
+    <div class="s-row">
+      <span class="s-label">Background</span>
+      <select class="s-select" onchange="setSetting('bg',this.value)">
+        <option value="#080808">Hitam (default)</option>
+        <option value="#0a0d18">Biru Gelap</option>
+        <option value="#0f0a0a">Merah Gelap</option>
+        <option value="#0a0a14">Navy</option>
+        <option value="#ffffff">Putih</option>
+        <option value="#f5f0e8">Krem</option>
+      </select>
+    </div>
+
+  </div>
 </div>
 
 <script>
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// ── CONFIG ──
+const deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const CFG = {
+  hour12:false, showSec:true, showMs:true, showDate:true,
+  showTz:true, showSecDots:true, showCompass:true, showDots:true,
+  dateFmt:'long', font:'teko', color:'#00ff88', bg:'#080808',
+  autoTz:true, tz:deviceTz,
+};
 
-  function pad(n, l) { return String(n).padStart(l, '0'); }
+const COLORS = ['#00ff88','#00e5ff','#ff6b35','#ff3b6b','#a78bfa','#facc15','#ffffff','#888888'];
+const FONTS  = { teko:"'Teko',sans-serif", orbitron:"'Orbitron',sans-serif", bebas:"'Bebas Neue',sans-serif", mono:"'DM Mono',monospace" };
+const DAYS   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const MONTHS_S=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+const TOG_MAP = {
+  hour12:'tog12h', showSec:'togSec', showMs:'togMs', showDate:'togDate',
+  showTz:'togTz', showSecDots:'togSecDots', showCompass:'togCompass',
+  showDots:'togDots', autoTz:'togAutoTz'
+};
 
-  function tick() {
-    const now = new Date();
-    const h = pad(now.getHours(), 2);
-    const m = pad(now.getMinutes(), 2);
-    const s = pad(now.getSeconds(), 2);
-    const ms = pad(now.getMilliseconds(), 3);
+// ── TIMEZONE LIST ──
+const TZ_LIST = [
+  'Pacific/Honolulu','America/Los_Angeles','America/Chicago','America/New_York',
+  'America/Sao_Paulo','Atlantic/Azores','Europe/London','Europe/Lisbon',
+  'Europe/Paris','Europe/Berlin','Europe/Rome','Europe/Helsinki',
+  'Europe/Istanbul','Europe/Moscow','Asia/Dubai','Asia/Karachi',
+  'Asia/Kolkata','Asia/Dhaka','Asia/Bangkok','Asia/Jakarta',
+  'Asia/Makassar','Asia/Jayapura','Asia/Singapore','Asia/Kuala_Lumpur',
+  'Asia/Manila','Asia/Hong_Kong','Asia/Shanghai','Asia/Taipei',
+  'Asia/Tokyo','Asia/Seoul','Australia/Perth','Australia/Darwin',
+  'Australia/Sydney','Pacific/Auckland','Pacific/Fiji',
+];
+const selTzEl = document.getElementById('selTz');
+TZ_LIST.forEach(tz => {
+  const o = document.createElement('option');
+  o.value = tz; o.textContent = tz;
+  if (tz === deviceTz) o.selected = true;
+  selTzEl.appendChild(o);
+});
 
-    document.getElementById('hms').textContent = `${h}:${m}:${s}`;
-    document.getElementById('ms').textContent = `.${ms}`;
-    document.getElementById('dateLine').textContent =
-      `${days[now.getDay()]}  ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+// ── SWATCHES ──
+COLORS.forEach(hex => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (hex === CFG.color ? ' active' : '');
+  s.style.background = hex;
+  s.onclick = () => {
+    document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    setSetting('color', hex);
+  };
+  document.getElementById('swatchRow').appendChild(s);
+});
 
-    const offset = -now.getTimezoneOffset();
-    const sign = offset >= 0 ? '+' : '-';
-    const oh = pad(Math.floor(Math.abs(offset) / 60), 2);
-    const om = pad(Math.abs(offset) % 60, 2);
-    document.getElementById('tz').textContent =
-      Intl.DateTimeFormat().resolvedOptions().timeZone + `  UTC${sign}${oh}:${om}`;
+// ── TOP DOT BAR (comet) ──
+const DOT_COUNT = 24;
+let dotPos = 0;
+const dotEl = [];
+(function() {
+  const bar = document.getElementById('dotBar');
+  for (let i = 0; i < DOT_COUNT; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    bar.appendChild(d);
+    dotEl.push(d);
+  }
+})();
 
-    requestAnimationFrame(tick);
+function stepDots() {
+  dotEl.forEach((d, i) => {
+    d.className = 'dot';
+    const dist = (dotPos - i + DOT_COUNT) % DOT_COUNT;
+    if (dist === 0)      d.classList.add('lit');
+    else if (dist === 1) d.classList.add('trail1');
+    else if (dist === 2) d.classList.add('trail2');
+    else if (dist === 3) d.classList.add('trail3');
+  });
+  dotPos = (dotPos + 1) % DOT_COUNT;
+}
+setInterval(stepDots, 60);
+stepDots();
+
+// ── 60-DOT SECOND INDICATOR ──
+const sdotEl = [];
+(function() {
+  const wrap = document.getElementById('secDots');
+  for (let i = 0; i < 60; i++) {
+    const d = document.createElement('div');
+    d.className = 'sdot';
+    wrap.appendChild(d);
+    sdotEl.push(d);
+  }
+})();
+
+let lastSec = -1;
+function updateSecDots(s) {
+  if (s === lastSec) return;
+  lastSec = s;
+  sdotEl.forEach((d, i) => {
+    d.className = 'sdot';
+    if (i < s)       d.classList.add('on');
+    if (i === s - 1) d.classList.add('cur');
+  });
+}
+
+// ── COMPASS ──
+let compassActive = false;
+let lastDeg = 0;
+let simAngle = 0;
+let simInterval = null;
+
+function dirLabel(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+function updateCompassUI(deg) {
+  document.getElementById('needle').style.transform = `rotate(${deg}deg)`;
+  document.getElementById('compassDeg').textContent = `${dirLabel(deg)}  ${Math.round(deg)}°`;
+}
+
+function startCompass() {
+  if (compassActive) return;
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(s => {
+      if (s === 'granted') bindOrientation();
+    }).catch(() => {});
+  } else {
+    bindOrientation();
+  }
+}
+
+function bindOrientation() {
+  compassActive = true;
+  if (simInterval) { clearInterval(simInterval); simInterval = null; }
+  document.getElementById('compassNote').textContent = '';
+  window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+  window.addEventListener('deviceorientation', handleOrientation, true);
+}
+
+function handleOrientation(e) {
+  let deg = null;
+  if (e.webkitCompassHeading !== undefined) deg = e.webkitCompassHeading;
+  else if (e.absolute && e.alpha !== null)  deg = (360 - e.alpha) % 360;
+  else if (e.alpha !== null)                deg = (360 - e.alpha) % 360;
+  if (deg === null) return;
+  let diff = deg - lastDeg;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  lastDeg += diff * 0.3;
+  if (lastDeg < 0) lastDeg += 360;
+  if (lastDeg >= 360) lastDeg -= 360;
+  updateCompassUI(lastDeg);
+}
+
+// Sim spin if no sensor
+simInterval = setInterval(() => {
+  if (!compassActive) {
+    simAngle = (simAngle + 0.35) % 360;
+    updateCompassUI(simAngle);
+  }
+}, 50);
+
+window.addEventListener('load', () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    setTimeout(bindOrientation, 400);
+  }
+});
+
+// ── SETTINGS ──
+function toggleSetting(key) {
+  CFG[key] = !CFG[key];
+  const el = document.getElementById(TOG_MAP[key]);
+  if (el) el.classList.toggle('on', CFG[key]);
+  if (key === 'autoTz') {
+    document.getElementById('rowManualTz').style.display = CFG.autoTz ? 'none' : 'flex';
+    if (CFG.autoTz) CFG.tz = deviceTz;
+  }
+  applyStyles();
+}
+function setSetting(key, val) { CFG[key] = val; applyStyles(); }
+
+function isLight(hex) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return (r*299+g*587+b*114)/1000 > 128;
+}
+
+function applyStyles() {
+  const root = document.documentElement;
+  const light = isLight(CFG.bg);
+  root.style.setProperty('--accent', CFG.color);
+  root.style.setProperty('--bg', CFG.bg);
+  root.style.setProperty('--panel',  light ? '#f0f0f0' : '#101010');
+  root.style.setProperty('--border', light ? '#ddd'    : '#1a1a1a');
+  root.style.setProperty('--muted',  light ? '#aaa'    : '#333');
+  root.style.setProperty('--text',   light ? '#222'    : '#bbb');
+  document.body.style.background = CFG.bg;
+
+  document.getElementById('hms').style.fontFamily = FONTS[CFG.font];
+
+  document.getElementById('dateLine').style.display    = CFG.showDate    ? '' : 'none';
+  document.getElementById('ms').style.display          = CFG.showMs      ? '' : 'none';
+  document.getElementById('tzLine').style.display      = CFG.showTz      ? '' : 'none';
+  document.getElementById('ampm').style.display        = CFG.hour12      ? '' : 'none';
+  document.getElementById('compassWrap').style.display = CFG.showCompass ? '' : 'none';
+  document.getElementById('dotBar').style.display      = CFG.showDots    ? '' : 'none';
+  document.getElementById('secDots').style.display     = CFG.showSecDots ? '' : 'none';
+}
+
+function togglePanel() {
+  document.getElementById('settingsPanel').classList.toggle('open');
+}
+
+// ── CLOCK TICK ──
+function pad(n, l) { return String(n).padStart(l, '0'); }
+
+function formatDate(now) {
+  const d=now.getDate(), mo=now.getMonth(), y=now.getFullYear();
+  switch (CFG.dateFmt) {
+    case 'long':    return `${DAYS[now.getDay()]},  ${d} ${MONTHS[mo]} ${y}`;
+    case 'short':   return `${d} ${MONTHS_S[mo]} ${y}`;
+    case 'numeric': return `${pad(d,2)}/${pad(mo+1,2)}/${y}`;
+    case 'us':      return `${pad(mo+1,2)}/${pad(d,2)}/${y}`;
+    case 'iso':     return `${y}-${pad(mo+1,2)}-${pad(d,2)}`;
+  }
+}
+
+function tick() {
+  const raw = new Date();
+  const now = CFG.autoTz ? raw : new Date(raw.toLocaleString('en-US', { timeZone: CFG.tz }));
+
+  let h=now.getHours(), m=now.getMinutes(), s=now.getSeconds(), ms=raw.getMilliseconds();
+  let ampmStr = '';
+  if (CFG.hour12) { ampmStr = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; }
+
+  document.getElementById('hms').textContent =
+    CFG.showSec ? `${pad(h,2)}:${pad(m,2)}:${pad(s,2)}` : `${pad(h,2)}:${pad(m,2)}`;
+  document.getElementById('ampm').textContent = ampmStr;
+  if (CFG.showMs) document.getElementById('ms').textContent = `.${pad(ms,3)}`;
+  if (CFG.showDate) document.getElementById('dateLine').textContent = formatDate(now);
+
+  if (CFG.showTz) {
+    const tz = CFG.autoTz ? deviceTz : CFG.tz;
+    const off = -raw.getTimezoneOffset();
+    const sign = off >= 0 ? '+' : '-';
+    document.getElementById('tzLine').textContent =
+      `${tz}  UTC${sign}${pad(Math.floor(Math.abs(off)/60),2)}:${pad(Math.abs(off)%60,2)}`;
   }
 
-  tick();
+  if (CFG.showSecDots) updateSecDots(s);
+
+  requestAnimationFrame(tick);
+}
+
+applyStyles();
+tick();
 </script>
 </body>
 </html>
