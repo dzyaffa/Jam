@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clock MS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@300;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #080808;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+  }
+
+  /* scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,255,136,0.012) 2px, rgba(0,255,136,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .wrap {
+    text-align: center;
+    user-select: none;
+  }
+
+  .date-line {
+    font-family: 'Teko', sans-serif;
+    font-weight: 300;
+    font-size: 16px;
+    letter-spacing: 6px;
+    color: #2a6644;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .time-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0;
+    line-height: 1;
+  }
+
+  .hms {
+    font-family: 'Teko', sans-serif;
+    font-weight: 600;
+    font-size: clamp(80px, 20vw, 140px);
+    color: #00ff88;
+    text-shadow: 0 0 40px rgba(0,255,136,0.25);
+    letter-spacing: -3px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(28px, 7vw, 50px);
+    color: rgba(0,255,136,0.35);
+    padding-bottom: clamp(10px, 2.5vw, 18px);
+    padding-left: 6px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 1px;
+  }
+
+  .tz {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: #1f3d2e;
+    margin-top: 12px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="date-line" id="dateLine"></div>
+  <div class="time-row">
+    <div class="hms" id="hms">00:00:00</div>
+    <div class="ms" id="ms">.000</div>
+  </div>
+  <div class="tz" id="tz"></div>
+</div>
+
+<script>
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function pad(n, l) { return String(n).padStart(l, '0'); }
+
+  function tick() {
+    const now = new Date();
+    const h = pad(now.getHours(), 2);
+    const m = pad(now.getMinutes(), 2);
+    const s = pad(now.getSeconds(), 2);
+    const ms = pad(now.getMilliseconds(), 3);
+
+    document.getElementById('hms').textContent = `${h}:${m}:${s}`;
+    document.getElementById('ms').textContent = `.${ms}`;
+    document.getElementById('dateLine').textContent =
+      `${days[now.getDay()]}  ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+    const offset = -now.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const oh = pad(Math.floor(Math.abs(offset) / 60), 2);
+    const om = pad(Math.abs(offset) % 60, 2);
+    document.getElementById('tz').textContent =
+      Intl.DateTimeFormat().resolvedOptions().timeZone + `  UTC${sign}${oh}:${om}`;
+
+    requestAnimationFrame(tick);
+  }
+
+  tick();
+</script>
+</body>
+</html>
